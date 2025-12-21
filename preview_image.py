@@ -37,6 +37,25 @@ class PreviewImageWithCounter:
 
         total_frames = images.shape[0]
 
+
+        valid_font_path = None
+        font_candidates = [
+            "/usr/share/fonts/TTF/DejaVuSans-Bold.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+            "/usr/share/fonts/noto/NotoSans-Bold.ttf",
+            "arial.ttf",
+            "Arial.ttf",
+        ]
+
+        for path in font_candidates:
+            try:
+                # Test load with dummy size
+                ImageFont.truetype(path, 10)
+                valid_font_path = path
+                break
+            except (OSError, IOError):
+                continue
+
         for batch_number, image in enumerate(images):
             i = 255.0 * image.cpu().numpy()
             img = Image.fromarray(np.clip(i, 0, 255).astype(np.uint8))
@@ -44,30 +63,14 @@ class PreviewImageWithCounter:
             draw = ImageDraw.Draw(img)
 
             font_size = max(16, int(img.height * 0.05))
-            font = None
 
-            # Standard linux/windows font paths (CachyOS/Arch locations included)
-            font_candidates = [
-                "/usr/share/fonts/TTF/DejaVuSans-Bold.ttf",
-                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-                "/usr/share/fonts/noto/NotoSans-Bold.ttf",
-                "arial.ttf",
-                "Arial.ttf",
-            ]
 
-            for font_path in font_candidates:
-                try:
-                    font = ImageFont.truetype(font_path, font_size)
-                    break
-                except (OSError, IOError):
-                    continue
-
-            if font is None:
+            if valid_font_path:
+                font = ImageFont.truetype(valid_font_path, font_size)
+            else:
                 font = ImageFont.load_default()
 
 
-            # Frame 0 (First) corresponds to n=Total
-            # Frame Total-1 (Last) corresponds to n=1
             n_value = total_frames - batch_number
             text = str(n_value)
 
@@ -90,7 +93,9 @@ class PreviewImageWithCounter:
 
             filename = f"{self.prefix_append}_{batch_number:05}_.png"
             file = os.path.join(self.output_dir, filename)
-            img.save(file)
+
+
+            img.save(file, compress_level=1)
 
             results.append({"filename": filename, "subfolder": "", "type": self.type})
 
